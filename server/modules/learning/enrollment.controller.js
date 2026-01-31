@@ -25,7 +25,8 @@ exports.enrollInCourse = async (req, res) => {
         // Create enrollment
         const enrollment = await Enrollment.create({
             user: userId,
-            course: courseId
+            course: courseId,
+            paidAmount: course.price || 0
         });
 
         // Increment enrolled count on course
@@ -114,6 +115,7 @@ exports.updateProgress = async (req, res) => {
 
         if (enrollment.progress >= 100) {
             enrollment.status = 'completed';
+            enrollment.completedAt = new Date();
         }
 
         await enrollment.save();

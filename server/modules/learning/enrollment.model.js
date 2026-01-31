@@ -32,6 +32,18 @@ const enrollmentSchema = new mongoose.Schema({
         type: String,
         enum: ['active', 'completed', 'dropped'],
         default: 'active'
+    },
+    paidAmount: {
+        type: Number,
+        default: 0
+    },
+    completedAt: {
+        type: Date
+    },
+    refundStatus: {
+        type: String,
+        enum: ['none', 'pending', 'approved', 'rejected', 'processed'],
+        default: 'none'
     }
 });
 

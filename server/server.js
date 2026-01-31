@@ -58,6 +58,7 @@ app.use('/api/quiz', require('./modules/learning/quiz.routes'));
 app.use('/api/ai', require('./modules/ai/ai.routes'));
 app.use('/api/team-finder', require('./modules/competition/teamFinder.routes'));
 app.use('/api/chat', require('./modules/competition/chat.routes'));
+app.use('/api/refunds', require('./modules/learning/refund.routes'));
 
 // --- 6. ERROR HANDLING ---
 app.use((err, req, res, next) => {

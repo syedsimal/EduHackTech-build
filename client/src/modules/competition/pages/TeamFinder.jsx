@@ -73,6 +73,12 @@ const TeamFinder = () => {
     const [unreadByUser, setUnreadByUser] = useState({});
     const [searchQuery, setSearchQuery] = useState('');
     const [debouncedSearch, setDebouncedSearch] = useState('');
+    const [matchesLoading, setMatchesLoading] = useState(false);
+    const [filters, setFilters] = useState({
+        role: '',
+        interests: [],
+        availability: []
+    });
 
     useEffect(() => {
         const t = setTimeout(() => setDebouncedSearch(searchQuery), 300);
@@ -84,13 +90,23 @@ const TeamFinder = () => {
             navigate('/login');
             return;
         }
-        loadData();
-    }, [user, token, eventId, debouncedSearch]);
+        // Only show global loading on first mount or when eventId changes drastically
+        const isInitial = !myCard;
+        loadData(isInitial);
+    }, [user, token, eventId, debouncedSearch, filters]);
 
-    const loadData = async (showLoader = true) => {
-        if (showLoader) setLoading(true);
+    const loadData = async (showGlobalLoader = false) => {
+        if (showGlobalLoader) setLoading(true);
+        else setMatchesLoading(true);
+
         try {
-            const searchParams = debouncedSearch.trim() ? { q: debouncedSearch.trim() } : {};
+            const searchParams = {
+                q: debouncedSearch.trim() || undefined,
+                role: filters.role || undefined,
+                interests: filters.interests.length > 0 ? filters.interests.join(',') : undefined,
+                availability: filters.availability.length > 0 ? filters.availability.join(',') : undefined
+            };
+
             const [cardRes, matchesRes, count, unreadRes] = await Promise.all([
                 getMyCard(token).catch(() => null),
                 getMatches(eventId || null, token, searchParams).catch(() => ({ data: [], count: 0 })),
@@ -118,7 +134,8 @@ const TeamFinder = () => {
         } catch (err) {
             setError(err.message);
         } finally {
-            if (showLoader) setLoading(false);
+            setLoading(false);
+            setMatchesLoading(false);
         }
     };
 
@@ -148,6 +165,24 @@ const TeamFinder = () => {
             ? formData.interests.filter((x) => x !== v)
             : [...formData.interests, v];
         setFormData({ ...formData, interests: arr });
+    };
+
+    const toggleFilterInterests = (v) => {
+        setFilters(prev => ({
+            ...prev,
+            interests: prev.interests.includes(v)
+                ? prev.interests.filter(x => x !== v)
+                : [...prev.interests, v]
+        }));
+    };
+
+    const toggleFilterAvailability = (v) => {
+        setFilters(prev => ({
+            ...prev,
+            availability: prev.availability.includes(v)
+                ? prev.availability.filter(x => x !== v)
+                : [...prev.availability, v]
+        }));
     };
 
     const handleConnect = async (toUserId) => {
@@ -253,15 +288,14 @@ const TeamFinder = () => {
                                 <button
                                     key={value}
                                     onClick={() => handleActiveChange(value)}
-                                    className={`px-4 py-2 rounded-xl font-medium transition ${
-                                        myCard.active === value
-                                            ? color === 'green'
-                                                ? 'bg-green-600 text-white'
-                                                : color === 'yellow'
+                                    className={`px-4 py-2 rounded-xl font-medium transition ${myCard.active === value
+                                        ? color === 'green'
+                                            ? 'bg-green-600 text-white'
+                                            : color === 'yellow'
                                                 ? 'bg-yellow-600 text-white'
                                                 : 'bg-slate-600 text-white'
-                                            : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
-                                    }`}
+                                        : 'bg-slate-700/50 text-slate-400 hover:bg-slate-700'
+                                        }`}
                                 >
                                     {label}
                                 </button>
@@ -270,9 +304,9 @@ const TeamFinder = () => {
                     </div>
                 )}
 
-                {/* Search Bar */}
+                {/* Search & Filters */}
                 {myCard && myCard.active !== 'not_looking' && (
-                    <div className="mb-6">
+                    <div className="mb-6 space-y-4">
                         <div className="relative">
                             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={20} />
                             <input
@@ -280,7 +314,7 @@ const TeamFinder = () => {
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
                                 placeholder="Search by name, role, or interest..."
-                                className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-indigo-500 outline-none"
+                                className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-600 rounded-xl text-white placeholder-slate-400 focus:ring-2 focus:ring-comp-500 outline-none transition-all"
                             />
                             {searchQuery && (
                                 <button
@@ -290,6 +324,72 @@ const TeamFinder = () => {
                                     <X size={18} />
                                 </button>
                             )}
+                        </div>
+
+                        {/* Filters Container */}
+                        <div className="bg-slate-800/30 border border-slate-700/50 p-4 rounded-2xl space-y-4">
+                            <div className="flex flex-col gap-3">
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px]">Role</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        <button
+                                            onClick={() => setFilters({ ...filters, role: '' })}
+                                            className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${!filters.role ? 'bg-comp-600 text-white shadow-md' : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                                }`}
+                                        >
+                                            All
+                                        </button>
+                                        {ROLES.map(({ value }) => (
+                                            <button
+                                                key={value}
+                                                onClick={() => setFilters({ ...filters, role: filters.role === value ? '' : value })}
+                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${filters.role === value
+                                                        ? 'bg-comp-600 text-white shadow-md ring-2 ring-comp-400/30'
+                                                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                                    }`}
+                                            >
+                                                {value}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px]">Interests</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {INTERESTS.map(i => (
+                                            <button
+                                                key={i}
+                                                onClick={() => toggleFilterInterests(i)}
+                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${filters.interests.includes(i)
+                                                        ? 'bg-indigo-600 text-white shadow-md ring-2 ring-indigo-400/30'
+                                                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                                    }`}
+                                            >
+                                                {i}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                                    <span className="text-xs font-bold text-slate-500 uppercase tracking-wider min-w-[80px]">Availability</span>
+                                    <div className="flex flex-wrap gap-2">
+                                        {AVAILABILITY.map(a => (
+                                            <button
+                                                key={a}
+                                                onClick={() => toggleFilterAvailability(a)}
+                                                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all ${filters.availability.includes(a)
+                                                        ? 'bg-emerald-600 text-white shadow-md ring-2 ring-emerald-400/30'
+                                                        : 'bg-slate-700 text-slate-400 hover:bg-slate-600'
+                                                    }`}
+                                            >
+                                                {a}
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 )}
@@ -323,9 +423,10 @@ const TeamFinder = () => {
                                                 key={value}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, role: value })}
-                                                className={`flex items-center gap-2 px-4 py-2 rounded-xl transition ${
-                                                    formData.role === value ? 'bg-comp-600 text-white' : 'bg-slate-700 text-slate-300'
-                                                }`}
+                                                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${formData.role === value
+                                                    ? 'bg-comp-600 text-white shadow-lg shadow-comp-500/30 ring-2 ring-comp-400'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    }`}
                                             >
                                                 <Icon size={18} />
                                                 {value}
@@ -354,9 +455,10 @@ const TeamFinder = () => {
                                                 key={l}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, level: l })}
-                                                className={`px-4 py-2 rounded-xl transition ${
-                                                    formData.level === l ? 'bg-comp-600 text-white' : 'bg-slate-700 text-slate-300'
-                                                }`}
+                                                className={`px-4 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${formData.level === l
+                                                    ? 'bg-comp-600 text-white shadow-lg shadow-comp-500/30 ring-2 ring-comp-400'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    }`}
                                             >
                                                 {l}
                                             </button>
@@ -371,9 +473,10 @@ const TeamFinder = () => {
                                                 key={a}
                                                 type="button"
                                                 onClick={() => toggleAvailability(a)}
-                                                className={`px-4 py-2 rounded-xl transition ${
-                                                    formData.availability.includes(a) ? 'bg-comp-600 text-white' : 'bg-slate-700 text-slate-300'
-                                                }`}
+                                                className={`px-4 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${formData.availability.includes(a)
+                                                    ? 'bg-comp-600 text-white shadow-lg shadow-comp-500/30 ring-2 ring-comp-400'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    }`}
                                             >
                                                 {a}
                                             </button>
@@ -388,9 +491,10 @@ const TeamFinder = () => {
                                                 key={i}
                                                 type="button"
                                                 onClick={() => toggleInterests(i)}
-                                                className={`px-4 py-2 rounded-xl transition ${
-                                                    formData.interests.includes(i) ? 'bg-comp-600 text-white' : 'bg-slate-700 text-slate-300'
-                                                }`}
+                                                className={`px-4 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${formData.interests.includes(i)
+                                                    ? 'bg-comp-600 text-white shadow-lg shadow-comp-500/30 ring-2 ring-comp-400'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    }`}
                                             >
                                                 {i}
                                             </button>
@@ -405,9 +509,10 @@ const TeamFinder = () => {
                                                 key={l}
                                                 type="button"
                                                 onClick={() => setFormData({ ...formData, lookingFor: l })}
-                                                className={`px-4 py-2 rounded-xl transition ${
-                                                    formData.lookingFor === l ? 'bg-comp-600 text-white' : 'bg-slate-700 text-slate-300'
-                                                }`}
+                                                className={`px-4 py-2.5 rounded-xl transition-all duration-200 hover:scale-105 ${formData.lookingFor === l
+                                                    ? 'bg-comp-600 text-white shadow-lg shadow-comp-500/30 ring-2 ring-comp-400'
+                                                    : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                                                    }`}
                                             >
                                                 {l}
                                             </button>
@@ -452,7 +557,12 @@ const TeamFinder = () => {
                                 <span>No matches yet</span>
                             )}
                         </h2>
-                        {matches.length === 0 ? (
+                        {matchesLoading ? (
+                            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                                <Loader2 className="w-10 h-10 text-comp-500 animate-spin mb-4" />
+                                <p className="text-slate-500 text-sm">Updating results...</p>
+                            </div>
+                        ) : matches.length === 0 ? (
                             <div className="p-12 bg-slate-800/30 border border-slate-700 rounded-2xl text-center text-slate-400">
                                 <Users size={48} className="mx-auto mb-4 opacity-50" />
                                 <p>Check back soon — more people are joining every day!</p>

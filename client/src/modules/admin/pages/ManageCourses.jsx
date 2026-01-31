@@ -20,7 +20,8 @@ const ManageCourses = () => {
     const [editingCourse, setEditingCourse] = useState(null);
     const [formData, setFormData] = useState({
         title: '', description: '', category: 'Other', instructor: '',
-        level: 'Beginner', price: 0, status: 'draft', tags: '', thumbnail: ''
+        level: 'Beginner', price: 0, status: 'draft', tags: '', thumbnail: '',
+        refundWindowDays: '', refundPercentage: ''
     });
 
     // Fetch courses
@@ -51,13 +52,33 @@ const ManageCourses = () => {
         if (course) {
             setEditingCourse(course);
             setFormData({
-                title: course.title, description: course.description, category: course.category,
-                instructor: course.instructor, level: course.level, price: course.price,
-                status: course.status, tags: course.tags?.join(', ') || '', thumbnail: course.thumbnail || ''
+                title: course.title,
+                description: course.description,
+                category: course.category,
+                instructor: course.instructor,
+                level: course.level,
+                price: course.price,
+                status: course.status,
+                tags: course.tags?.join(', ') || '',
+                thumbnail: course.thumbnail || '',
+                refundWindowDays: course.refundWindowDays || '',
+                refundPercentage: course.refundPercentage || ''
             });
         } else {
             setEditingCourse(null);
-            setFormData({ title: '', description: '', category: 'Other', instructor: '', level: 'Beginner', price: 0, status: 'draft', tags: '', thumbnail: '' });
+            setFormData({
+                title: '',
+                description: '',
+                category: 'Other',
+                instructor: '',
+                level: 'Beginner',
+                price: 0,
+                status: 'draft',
+                tags: '',
+                thumbnail: '',
+                refundWindowDays: '',
+                refundPercentage: ''
+            });
         }
         setIsModalOpen(true);
     };
@@ -65,7 +86,12 @@ const ManageCourses = () => {
     // Save course (create or update)
     const saveCourse = async (e) => {
         e.preventDefault();
-        const body = { ...formData, tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean) };
+        const body = {
+            ...formData,
+            tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+            refundWindowDays: formData.refundWindowDays !== '' ? Number(formData.refundWindowDays) : null,
+            refundPercentage: formData.refundPercentage !== '' ? Number(formData.refundPercentage) : null
+        };
         const url = editingCourse ? `${API_BASE}/admin/${editingCourse._id}` : `${API_BASE}/admin`;
         const method = editingCourse ? 'PUT' : 'POST';
 
@@ -168,7 +194,6 @@ const ManageCourses = () => {
                 </div>
             </main>
 
-            {/* Modal */}
             {isModalOpen && (
                 <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
                     <div className="bg-slate-900 border border-slate-800 rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
@@ -224,6 +249,16 @@ const ManageCourses = () => {
                                     <option value="published">Published</option>
                                 </select>
                             </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Refund Window (Days)</label>
+                                    <input name="refundWindowDays" type="number" value={formData.refundWindowDays} onChange={handleChange} placeholder="e.g., 30 (default)" className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500" />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-400 mb-2">Refund Percentage (%)</label>
+                                    <input name="refundPercentage" type="number" value={formData.refundPercentage} onChange={handleChange} placeholder="e.g., 90 (default)" className="w-full px-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-white focus:outline-none focus:border-blue-500" />
+                                </div>
+                            </div>
                             <div className="flex justify-end gap-3 pt-4">
                                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-5 py-2.5 border border-slate-700 text-slate-300 rounded-xl hover:bg-slate-800 transition">Cancel</button>
                                 <button type="submit" className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-xl transition">
@@ -241,7 +276,7 @@ const ManageCourses = () => {
                 isOpen={!!enrollmentCourse}
                 onClose={() => setEnrollmentCourse(null)}
             />
-        </div>
+        </div >
     );
 };
 

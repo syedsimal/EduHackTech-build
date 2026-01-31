@@ -17,6 +17,7 @@ import {
 
 import { getCourse, getCourseContent } from "../../services/course.service";
 import { checkEnrollment } from "../../services/enrollment.service";
+import { checkRefundEligibility, requestRefund } from "../../services/refund.service";
 import { useAuth } from "../../context/AuthContext";
 import CourseEditModal from "../../components/common/CourseEditModal";
 
@@ -28,8 +29,10 @@ const CoursePage = () => {
   const [course, setCourse] = useState(null);
   const [content, setContent] = useState(null);
   const [enrollment, setEnrollment] = useState(null);
+  const [refundEligibility, setRefundEligibility] = useState(null);
 
   const [loading, setLoading] = useState(true);
+  const [requestingRefund, setRequestingRefund] = useState(false);
   const [error, setError] = useState(null);
   const [showEditModal, setShowEditModal] = useState(false);
 
@@ -50,6 +53,14 @@ const CoursePage = () => {
           const enrollmentData = await checkEnrollment(id, token);
           if (enrollmentData.enrolled) {
             setEnrollment(enrollmentData.data);
+
+            // Check refund eligibility if enrolled
+            try {
+              const eligibilityData = await checkRefundEligibility(enrollmentData.data._id, token);
+              setRefundEligibility(eligibilityData.data);
+            } catch (err) {
+              console.error("Failed to fetch refund eligibility", err);
+            }
           }
         }
       } catch (err) {
@@ -91,6 +102,34 @@ const CoursePage = () => {
     if (!enrollment) return false;
     const lessonIds = module.lessons.map((l) => l._id);
     return lessonIds.every((id) => enrollment.completedModules?.includes(id));
+  };
+
+  const handleRequestRefund = async () => {
+    if (!enrollment || !refundEligibility?.isEligible) return;
+
+    if (!window.confirm("Are you sure you want to request a refund for this course?")) return;
+
+    try {
+      setRequestingRefund(true);
+      const result = await requestRefund(enrollment._id, "Course completion refund request", token);
+      alert(result.message || "Refund request submitted successfully!");
+
+      // Update local state
+      setRefundEligibility(prev => ({
+        ...prev,
+        isEligible: false,
+        reason: "Refund already requested"
+      }));
+      setEnrollment(prev => ({
+        ...prev,
+        refundStatus: 'pending'
+      }));
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.message || "Failed to request refund");
+    } finally {
+      setRequestingRefund(false);
+    }
   };
 
   return (
@@ -328,8 +367,46 @@ const CoursePage = () => {
           )}
 
           <p className="text-xs text-gray-500 mt-4 text-center">
-            30‑day money‑back guarantee
+            {course.refundWindowDays || 30}-day money-back guarantee
           </p>
+
+          {enrollment && refundEligibility && (
+            <div className="mt-6 pt-6 border-t border-gray-100">
+              <div className="flex flex-col gap-3">
+                {refundEligibility.daysRemaining > 0 && !['pending', 'approved', 'rejected'].includes(enrollment.refundStatus) && (
+                  <div className="bg-blue-50 text-blue-700 p-3 rounded-xl text-center text-sm font-medium">
+                    {refundEligibility.daysRemaining} days left for refund eligibility
+                  </div>
+                )}
+
+                {refundEligibility.isEligible && enrollment.progress === 100 && (
+                  <button
+                    onClick={handleRequestRefund}
+                    disabled={requestingRefund}
+                    className="w-full py-3 rounded-xl border-2 border-red-100 text-red-600 font-bold hover:bg-red-50 transition flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {requestingRefund ? <Loader2 className="animate-spin" size={18} /> : "Request Refund"}
+                  </button>
+                )}
+
+                {enrollment.refundStatus && enrollment.refundStatus !== 'none' && (
+                  <div className={`p-3 rounded-xl text-center text-sm font-bold capitalize
+                    ${enrollment.refundStatus === 'pending' ? 'bg-yellow-50 text-yellow-700' :
+                      enrollment.refundStatus === 'approved' ? 'bg-green-50 text-green-700' :
+                        'bg-red-50 text-red-700'}`}
+                  >
+                    Refund Status: {enrollment.refundStatus}
+                  </div>
+                )}
+
+                {!refundEligibility.isEligible && enrollment.progress === 100 && enrollment.refundStatus === 'none' && (
+                  <p className="text-xs text-center text-gray-400">
+                    {refundEligibility.reason || "Not eligible for refund"}
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
       </section>
 

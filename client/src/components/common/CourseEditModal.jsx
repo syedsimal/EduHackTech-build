@@ -17,7 +17,9 @@ const CourseEditModal = ({ course, isOpen, onClose, onSave }) => {
         price: 0,
         status: 'draft',
         thumbnail: '',
-        tags: ''
+        tags: '',
+        refundWindowDays: '',
+        refundPercentage: ''
     });
 
     // Populate form when course changes
@@ -33,7 +35,9 @@ const CourseEditModal = ({ course, isOpen, onClose, onSave }) => {
                 price: course.price || 0,
                 status: course.status || 'draft',
                 thumbnail: course.thumbnail || '',
-                tags: course.tags?.join(', ') || ''
+                tags: course.tags?.join(', ') || '',
+                refundWindowDays: course.refundWindowDays || '',
+                refundPercentage: course.refundPercentage || ''
             });
         }
     }, [course]);
@@ -50,7 +54,9 @@ const CourseEditModal = ({ course, isOpen, onClose, onSave }) => {
         const body = {
             ...formData,
             tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
-            price: Number(formData.price)
+            price: Number(formData.price),
+            refundWindowDays: formData.refundWindowDays !== '' ? Number(formData.refundWindowDays) : null,
+            refundPercentage: formData.refundPercentage !== '' ? Number(formData.refundPercentage) : null
         };
 
         try {
@@ -237,6 +243,31 @@ const CourseEditModal = ({ course, isOpen, onClose, onSave }) => {
                             placeholder="React, JavaScript, Frontend"
                             className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                         />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Refund Window (Days)</label>
+                            <input
+                                name="refundWindowDays"
+                                type="number"
+                                value={formData.refundWindowDays}
+                                onChange={handleChange}
+                                placeholder="e.g., 30 (use default if empty)"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">Refund Percentage (%)</label>
+                            <input
+                                name="refundPercentage"
+                                type="number"
+                                value={formData.refundPercentage}
+                                onChange={handleChange}
+                                placeholder="e.g., 90 (use default if empty)"
+                                className="w-full px-4 py-3 bg-gray-50 border border-gray-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                            />
+                        </div>
                     </div>
 
                     {/* Actions */}

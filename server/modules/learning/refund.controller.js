@@ -62,6 +62,22 @@ exports.requestRefund = async (req, res) => {
             });
         }
 
+        // --- Determine refund window and percentage (Course-specific fallback to Global) ---
+        const refundWindowDays = enrollment.course.refundWindowDays !== null && enrollment.course.refundWindowDays !== undefined
+            ? enrollment.course.refundWindowDays
+            : settings.refundWindowDays;
+
+        const refundPercentage = enrollment.course.refundPercentage !== null && enrollment.course.refundPercentage !== undefined
+            ? enrollment.course.refundPercentage
+            : settings.defaultRefundPercentage;
+
+        if (daysSinceEnrollment > refundWindowDays) {
+            return res.status(400).json({
+                success: false,
+                message: `Refund window of ${refundWindowDays} days has expired`
+            });
+        }
+
         // Check minimum price
         const paidAmount = enrollment.paidAmount || enrollment.course.price || 0;
         if (paidAmount < settings.minimumCoursePrice) {
@@ -72,7 +88,6 @@ exports.requestRefund = async (req, res) => {
         }
 
         // Calculate refund amount
-        const refundPercentage = settings.defaultRefundPercentage;
         const refundAmount = (paidAmount * refundPercentage) / 100;
 
         // Create refund request
@@ -142,16 +157,26 @@ exports.checkEligibility = async (req, res) => {
         const enrollmentDate = new Date(enrollment.enrolledAt);
         const now = new Date();
         const daysSinceEnrollment = Math.floor((now - enrollmentDate) / (1000 * 60 * 60 * 24));
-        const daysRemaining = settings.refundWindowDays - daysSinceEnrollment;
+
+        // --- Determine refund window and percentage (Course-specific fallback to Global) ---
+        const refundWindowDays = enrollment.course.refundWindowDays !== null && enrollment.course.refundWindowDays !== undefined
+            ? enrollment.course.refundWindowDays
+            : settings.refundWindowDays;
+
+        const refundPercentage = enrollment.course.refundPercentage !== null && enrollment.course.refundPercentage !== undefined
+            ? enrollment.course.refundPercentage
+            : settings.defaultRefundPercentage;
+
+        const daysRemaining = refundWindowDays - daysSinceEnrollment;
 
         const paidAmount = enrollment.paidAmount || enrollment.course.price || 0;
-        const refundAmount = (paidAmount * settings.defaultRefundPercentage) / 100;
+        const refundAmount = (paidAmount * refundPercentage) / 100;
 
         const eligibility = {
             isEnabled: settings.isEnabled,
             isEligible: false,
             reason: '',
-            refundPercentage: settings.defaultRefundPercentage,
+            refundPercentage: refundPercentage,
             refundAmount,
             daysRemaining: Math.max(0, daysRemaining),
             requiresCompletion: settings.requiresCourseCompletion

@@ -23,6 +23,7 @@ import {
   Terminal,
   Users,
   UserPlus2,
+  Shield,
 } from "lucide-react";
 import CompilerModal from "../Compiler/CompilerModal";
 import { useTheme } from "../../context/ThemeContext";
@@ -317,6 +318,16 @@ const Navbar = () => {
                 </>
               )}
             </button>
+
+            {user?.role === 'admin' && (
+              <button
+                onClick={() => navigate('/admin')}
+                className={`flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 rounded-full border border-blue-200 bg-blue-50 hover:bg-blue-100 hover:shadow-md transition-all duration-300 active:scale-95 text-blue-600`}
+              >
+                <Shield className="h-4 w-4" />
+                <span className="text-sm font-bold hidden md:block">Admin</span>
+              </button>
+            )}
 
 
             {/* Mobile Search Toggle */}

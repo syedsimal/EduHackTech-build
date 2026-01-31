@@ -59,6 +59,14 @@ const courseSchema = new mongoose.Schema({
         min: 0,
         max: 5
     },
+    refundWindowDays: {
+        type: Number,
+        default: null // If null, use global settings
+    },
+    refundPercentage: {
+        type: Number,
+        default: null // If null, use global settings
+    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
